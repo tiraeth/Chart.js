@@ -111,7 +111,7 @@
         initialize:  function(data){
             this.BubbleClass = Chart.Ellipse.extend({
                 strokeWidth: data.strokeWidth || 1,
-                showStroke: data.strokeWidth > 0,
+                showStroke: (data.strokeWidth || 1) > 0,
                 strokeColor: data.strokeColor || 'rgba(255,255,255,0.7)',
                 fillColor: data.fillColor || 'rgba(255,255,255,0.5)',
                 ctx: this.chart.ctx,
