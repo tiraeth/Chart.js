@@ -51,6 +51,9 @@
 			// Boolean - If we want to override with a hard coded scale
 			scaleOverride: false,
 
+			// Boolean - If we want to use auto-logarithmic scale
+			scaleLogarithmic: false,
+
 			// ** Required if scaleOverride is true **
 			// Number - The number of steps in a hard coded scale
 			scaleSteps: null,
@@ -358,12 +361,16 @@
 		calculateOrderOfMagnitude = helpers.calculateOrderOfMagnitude = function(val){
 			return Math.floor(Math.log(val) / Math.LN10);
 		},
-		calculateScaleRange = helpers.calculateScaleRange = function(valuesArray, drawingSize, textSize, startFromZero, integersOnly){
+		calculateScaleRange = helpers.calculateScaleRange = function(valuesArray, drawingSize, textSize, startFromZero, integersOnly, useLogarithmicScale){
 
 			//Set a minimum step of two - a point at the top of the graph, and a point at the base
 			var minSteps = 2,
 				maxSteps = Math.floor(drawingSize/(textSize * 1.5)),
 				skipFitting = (minSteps >= maxSteps);
+
+			if (useLogarithmicScale) {
+				valuesArray = valuesArray.map(function(value){ return Math.log(value) / Math.LN10; });
+			}
 
 			var maxValue = max(valuesArray),
 				minValue = min(valuesArray);
@@ -1197,6 +1204,24 @@
 		}
 	});
 
+	Chart.Ellipse = Chart.Element.extend({
+        draw: function(){
+            var ctx = this.ctx;
+
+            ctx.beginPath();
+
+            ctx.fillStyle = this.fillColor;
+            ctx.strokeStyle = this.strokeColor;
+            ctx.lineWidth = this.strokeWidth;
+
+            ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI, false);
+            ctx.fill();
+            if (this.showStroke) {
+                ctx.stroke();
+            }
+        }
+    });
+
 	Chart.Rectangle = Chart.Element.extend({
 		draw : function(){
 			var ctx = this.ctx,
@@ -1409,7 +1434,7 @@
 			var stepDecimalPlaces = getDecimalPlaces(this.stepValue);
 
 			for (var i=0; i<=this.steps; i++){
-				this.yLabels.push(template(this.templateString,{value:(this.min + (i * this.stepValue)).toFixed(stepDecimalPlaces)}));
+				this.yLabels.push(template(this.templateString,{value:(this.logarithmic ? Math.pow(10, this.min + (i * this.stepValue)) : this.min + (i * this.stepValue) ).toFixed(stepDecimalPlaces)}));
 			}
 			this.yLabelWidth = (this.display && this.showLabels) ? longestText(this.ctx,this.font,this.yLabels) : 0;
 		},
@@ -1532,7 +1557,7 @@
 		},
 		calculateY : function(value){
 			var scalingFactor = this.drawingArea() / (this.min - this.max);
-			return this.endPoint - (scalingFactor * (value - this.min));
+			return this.endPoint - (scalingFactor * ((this.logarithmic ? Math.log(value) / Math.LN10 : value) - this.min));
 		},
 		calculateX : function(index){
 			var isRotated = (this.xLabelRotation > 0),

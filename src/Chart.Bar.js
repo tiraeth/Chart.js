@@ -192,13 +192,15 @@
 				valuesCount : labels.length,
 				beginAtZero : this.options.scaleBeginAtZero,
 				integersOnly : this.options.scaleIntegersOnly,
+				logarithmic: this.options.scaleLogarithmic,
 				calculateYRange: function(currentHeight){
 					var updatedRanges = helpers.calculateScaleRange(
 						dataTotal(),
 						currentHeight,
 						this.fontSize,
 						this.beginAtZero,
-						this.integersOnly
+						this.integersOnly,
+						this.logarithmic
 					);
 					helpers.extend(this, updatedRanges);
 				},
