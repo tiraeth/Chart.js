@@ -188,6 +188,14 @@
 				}
 			}
 		},
+		eachRight = helpers.eachRight = function(array,callback,self){
+			var i, additionalArgs = Array.prototype.slice.call(arguments, 3);
+			for (i=array.length-1; i>-1; i--){
+				if (false === callback.apply(self,[array[i], i].concat(additionalArgs.prototype))) {
+					break;
+				}
+			}
+		},
         unique = helpers.unique = function(obj){
             var unique = [];
             each(obj, function(value){

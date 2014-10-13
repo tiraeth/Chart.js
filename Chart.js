@@ -188,6 +188,14 @@
 				}
 			}
 		},
+		eachRight = helpers.eachRight = function(array,callback,self){
+			var i, additionalArgs = Array.prototype.slice.call(arguments, 3);
+			for (i=array.length-1; i>-1; i--){
+				if (false === callback.apply(self,[array[i], i].concat(additionalArgs.prototype))) {
+					break;
+				}
+			}
+		},
         unique = helpers.unique = function(obj){
             var unique = [];
             each(obj, function(value){
@@ -2288,24 +2296,95 @@
         bubbleMinRadius : 5,
         label: function(value){ return value; },
         xLabelBoundsOnly: false,
-        areaSelectionEnabled: false
+        areaSelectionEnabled: false,
+        areaSelectionCallback: helpers.noop
     };
 
     var SelectionArea = Chart.Element.extend({
         draw: function(){
             var ctx = this.ctx;
 
-            ctx.beginPath();
+            if (!this.isVisible()) {
+                this.rect = [0, 0, 0, 0];
+                return;
+            }
+
+            var left = this.x,
+                top = this.y,
+                width = this.width,
+                height = this.height;
+
+            if (width < 0) {
+                left = this.x + this.width;
+                width = -this.width;
+            }
+
+            if (height < 0) {
+                top = this.y + this.height;
+                height = -this.height;
+            }
+
+            left = Math.round(left) + 0.5;
+            top = Math.round(top) + 0.5;
+            width = Math.round(width);
+            height = Math.round(height);
+
+            this.rect = [left, top, left + width, top + height];
 
             ctx.fillStyle = this.fillColor;
             ctx.strokeStyle = this.strokeColor;
             ctx.lineWidth = this.strokeWidth;
 
-            ctx.rect(Math.round(this.x)+0.5, Math.round(this.y)+0.5, Math.round(this.width), Math.round(this.height));
+            if (this.hover) {
+                ctx.globalAlpha = 0.5;
+
+                ctx.beginPath();
+                ctx.moveTo(left + width - 3, top + 4);
+                ctx.lineTo(left + width - 13, top + 14);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(left + width - 13, top + 4);
+                ctx.lineTo(left + width - 3, top + 14);
+                ctx.stroke();
+            }
+
+            ctx.beginPath();
+
+            ctx.moveTo(0, 0);
+
+            ctx.rect(left, top, width, height);
             ctx.fill();
             if (this.showStroke) {
                 ctx.stroke();
             }
+
+            ctx.globalAlpha = 1.0;
+        },
+        checkHover: function(x, y){
+            var _hover = this.hover;
+            this.hover = this.contains({ x: x, y: y });
+
+            this.save();
+
+            return _hover != this.hover;
+        },
+        isVisible: function(){
+            return this.width != 0 && this.height != 0;
+        },
+        contains: function(point){
+            return this.isVisible()
+                && point.x >= this.rect[0] + 1
+                && point.x <= this.rect[2] + 1
+                && point.y >= this.rect[1] + 1
+                && point.y <= this.rect[3] + 1;
+        },
+        inCorner: function(point){
+            return this.isVisible()
+                && point.x >= this.rect[2] - 20 + 1
+                && point.x <= this.rect[2] + 1
+                && point.y >= this.rect[1] + 1
+                && point.y <= this.rect[1] + 20 + 1;
         }
     });
 
@@ -2347,6 +2426,7 @@
             };
 
             this.selectionAreas = [];
+            this.selectionAreas.hovered = false;
             if (this.options.areaSelectionEnabled) {
                 this.isSelecting = false;
                 helpers.bindEvents(this, ['mousemove', 'click'], function(evt){
@@ -2356,30 +2436,54 @@
                         if (this.isSelecting) {
                             this.isSelecting = false;
                             this.chart.canvas.style.cursor = 'default';
+
+                            this.options.areaSelectionCallback.call(this, this.selected());
                         } else {
-                            this.isSelecting = true;
-                            this.chart.canvas.style.cursor = 'crosshair';
+                            var toRemove = [];
+                            helpers.each(this.selectionAreas, function(area, index){
+                                area.inCorner({x: mouse.x, y: mouse.y}) && toRemove.push(index);
+                            }, this);
 
-                            this.selectionAreas.push(new this.SelectionAreaClass({
-                                x: mouse.x,
-                                y: mouse.y,
-                                width: 5,
-                                height: 5
-                            }));
+                            if (toRemove.length > 0) {
+                                this.selectionAreas = this.selectionAreas.filter(function(area, index){
+                                    return !area.isVisible() || toRemove.indexOf(index) == -1;
+                                });
 
-                            this.draw();
+                                this.draw();
+                            } else {
+                                this.isSelecting = true;
+                                this.chart.canvas.style.cursor = 'crosshair';
+
+                                this.selectionAreas.push(new this.SelectionAreaClass({
+                                    x: mouse.x,
+                                    y: mouse.y,
+                                    width: 0,
+                                    height: 0
+                                }));
+
+                                this.draw();
+                            }
                         }
                     } else {
                         if (this.isSelecting) {
                             var area = this.selectionAreas[this.selectionAreas.length-1];
 
                             helpers.extend(area, {
-                                width: Math.max(5, mouse.x - area.x),
-                                height: Math.max(5, mouse.y - area.y)
+                                width: mouse.x - area.x,
+                                height: mouse.y - area.y
                             });
 
                             area.save();
                             this.draw();
+                        } else {
+                            var changed = false;
+                            helpers.each(this.selectionAreas, function(area){
+                                changed = changed || area.checkHover(mouse.x, mouse.y);
+                            }, this);
+
+                            if (changed) {
+                                this.draw();
+                            }
                         }
                     }
                 });
@@ -2388,6 +2492,7 @@
             helpers.each(data.data,function(bubble,index){
                 this.dataset.bubbles.push(new this.BubbleClass({
                     value : bubble.y,
+                    id: bubble.id || index,
                     label: this.options.label(bubble.x),
                     size: bubble.r,
                     strokeColor : data.strokeColor,
@@ -2506,6 +2611,20 @@
             helpers.each(this.selectionAreas, function(area){
                 area.draw();
             }, this);
+        },
+        selected: function(){
+            var selected = [];
+            helpers.each(this.selectionAreas, function(area){
+                if (area.isVisible()) {
+                    helpers.each(this.dataset.bubbles, function(bubble){
+                        if (bubble.hasValue() && selected.indexOf(bubble.id) == -1 && area.contains(bubble)) {
+                            selected.push(bubble.id);
+                        }
+                    }, this);
+                }
+            }, this);
+
+            return selected;
         }
     });
 
