@@ -188,6 +188,15 @@
 				}
 			}
 		},
+        unique = helpers.unique = function(obj){
+            var unique = [];
+            each(obj, function(value){
+                if (unique.indexOf(value) == -1) {
+                    unique.push(value);
+                }
+            });
+            return unique;
+        },
 		clone = helpers.clone = function(obj){
 			var objClone = {};
 			each(obj,function(value,key){
