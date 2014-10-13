@@ -2393,18 +2393,18 @@
         defaults : defaultConfig,
         initialize:  function(data){
             this.BubbleClass = Chart.Ellipse.extend({
-                strokeWidth: 1,
-                showStroke: true,
-                strokeColor: 'rgba(255,255,255,0.7)',
-                fillColor: 'rgba(255,255,255,0.5)',
+                strokeWidth: data.strokeWidth || 1,
+                showStroke: data.strokeWidth > 0,
+                strokeColor: data.strokeColor || 'rgba(255,255,255,0.7)',
+                fillColor: data.fillColor || 'rgba(255,255,255,0.5)',
                 ctx: this.chart.ctx,
             });
 
             this.SelectionAreaClass = SelectionArea.extend({
                 strokeWidth: 1,
                 showStroke: true,
-                strokeColor: 'rgba(255,0,0,0.5)',
-                fillColor: 'rgba(255,0,0,0.3)',
+                strokeColor: data.selectionAreaStrokeColor || 'rgba(255,0,0,0.6)',
+                fillColor: data.selectionAreaFillColor || 'rgba(255,0,0,0.3)',
                 ctx: this.chart.ctx
             });
 
