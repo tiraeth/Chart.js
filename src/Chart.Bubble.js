@@ -12,8 +12,27 @@
         bubbleMaxRadius : 30,
         bubbleMinRadius : 5,
         label: function(value){ return value; },
-        xLabelBoundsOnly: false
+        xLabelBoundsOnly: false,
+        areaSelectionEnabled: false
     };
+
+    var SelectionArea = Chart.Element.extend({
+        draw: function(){
+            var ctx = this.ctx;
+
+            ctx.beginPath();
+
+            ctx.fillStyle = this.fillColor;
+            ctx.strokeStyle = this.strokeColor;
+            ctx.lineWidth = this.strokeWidth;
+
+            ctx.rect(Math.round(this.x)+0.5, Math.round(this.y)+0.5, Math.round(this.width), Math.round(this.height));
+            ctx.fill();
+            if (this.showStroke) {
+                ctx.stroke();
+            }
+        }
+    });
 
     Chart.Type.extend({
         name: "Bubble",
@@ -27,11 +46,21 @@
                 ctx: this.chart.ctx,
             });
 
+            this.SelectionAreaClass = SelectionArea.extend({
+                strokeWidth: 1,
+                showStroke: true,
+                strokeColor: 'rgba(255,0,0,0.5)',
+                fillColor: 'rgba(255,0,0,0.3)',
+                ctx: this.chart.ctx
+            });
+
             this.getRadius = function(size, min, max){
                 var span = this.options.bubbleMaxRadius - this.options.bubbleMinRadius,
-                    r = Math.round(this.options.bubbleMinRadius + span/(max-min) * (size-min));
+                    r = Math.round(this.options.bubbleMinRadius + span * (size-min)/(max-min));
 
-                return 0.5 + ((r % 2 == 0) ? r + 1 : r);
+                r = 0.5 + ((r % 2 == 0) ? r + 1 : r);
+
+                return r;
             };
 
             this.dataset = {
@@ -42,9 +71,49 @@
                 minR: Math.min.apply(Math, data.data.map(function(p){ return p.r; })),
             };
 
+            this.selectionAreas = [];
+            if (this.options.areaSelectionEnabled) {
+                this.isSelecting = false;
+                helpers.bindEvents(this, ['mousemove', 'click'], function(evt){
+                    var mouse = helpers.getRelativePosition(evt);
+
+                    if (evt.type == 'click') {
+                        if (this.isSelecting) {
+                            this.isSelecting = false;
+                            this.chart.canvas.style.cursor = 'default';
+                        } else {
+                            this.isSelecting = true;
+                            this.chart.canvas.style.cursor = 'crosshair';
+
+                            this.selectionAreas.push(new this.SelectionAreaClass({
+                                x: mouse.x,
+                                y: mouse.y,
+                                width: 5,
+                                height: 5
+                            }));
+
+                            this.draw();
+                        }
+                    } else {
+                        if (this.isSelecting) {
+                            var area = this.selectionAreas[this.selectionAreas.length-1];
+
+                            helpers.extend(area, {
+                                width: Math.max(5, mouse.x - area.x),
+                                height: Math.max(5, mouse.y - area.y)
+                            });
+
+                            area.save();
+                            this.draw();
+                        }
+                    }
+                });
+            }
+
             helpers.each(data.data,function(bubble,index){
                 this.dataset.bubbles.push(new this.BubbleClass({
                     value : bubble.y,
+                    label: this.options.label(bubble.x),
                     size: bubble.r,
                     strokeColor : data.strokeColor,
                     fillColor : data.fillColor
@@ -61,9 +130,9 @@
                 }).map(self.options.label)
             );
 
-            helpers.each(this.dataset.bubbles, function(bubble,index){
+            helpers.each(this.dataset.bubbles, function(bubble){
                 helpers.extend(bubble, {
-                    x: this.scale.calculateX(index),
+                    x: this.scale.calculateX(this.scale.xLabels.indexOf(bubble.label)),
                     y: this.scale.endPoint,
                     radius : this.options.bubbleMinRadius
                 });
@@ -147,16 +216,20 @@
 
             this.scale.draw(easingDecimal);
 
-            helpers.each(this.dataset.bubbles, function(bubble, index){
+            helpers.each(this.dataset.bubbles, function(bubble){
                 if (bubble.hasValue()){
                     bubble.transition({
                         y: this.scale.calculateY(bubble.value),
-                        x: this.scale.calculateX(index),
+                        x: this.scale.calculateX(this.scale.xLabels.indexOf(bubble.label)),
                         radius: this.getRadius(bubble.size, this.dataset.minR, this.dataset.maxR)
                     }, easingDecimal);
 
                     bubble.draw();
                 }
+            }, this);
+
+            helpers.each(this.selectionAreas, function(area){
+                area.draw();
             }, this);
         }
     });
