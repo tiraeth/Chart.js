@@ -166,6 +166,8 @@
                                     return !area.isVisible() || toRemove.indexOf(index) == -1;
                                 });
 
+                                this.options.areaSelectionCallback.call(this, this.selected());
+
                                 this.draw();
                             } else {
                                 this.isSelecting = true;
