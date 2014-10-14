@@ -126,6 +126,10 @@
             });
 
             this.getRadius = function(size, min, max){
+                if (min == max) {
+                    return 0.5 + this.options.bubbleMinRadius;
+                }
+
                 var span = this.options.bubbleMaxRadius - this.options.bubbleMinRadius,
                     r = Math.round(this.options.bubbleMinRadius + span * (size-min)/(max-min));
 
