@@ -170,9 +170,10 @@
                                     return !area.isVisible() || toRemove.indexOf(index) == -1;
                                 });
 
-                                this.options.areaSelectionCallback.call(this, this.selected());
-
                                 this.draw();
+                                this.draw();
+
+                                this.options.areaSelectionCallback.call(this, this.selected());
                             } else {
                                 this.isSelecting = true;
                                 this.chart.canvas.style.cursor = 'crosshair';

@@ -386,7 +386,7 @@
 				skipFitting = (minSteps >= maxSteps);
 
 			if (useLogarithmicScale) {
-				valuesArray = valuesArray.map(function(value){ return Math.log(value) / Math.LN10; });
+				valuesArray = valuesArray.map(function(value){ return value == 0 ? 0 : Math.log(value) / Math.LN10; });
 			}
 
 			var maxValue = max(valuesArray),
@@ -1574,7 +1574,7 @@
 		},
 		calculateY : function(value){
 			var scalingFactor = this.drawingArea() / (this.min - this.max);
-			return this.endPoint - (scalingFactor * ((this.logarithmic ? Math.log(value) / Math.LN10 : value) - this.min));
+			return this.endPoint - (scalingFactor * ((this.logarithmic ? value == 0 ? 0 : Math.log(value) / Math.LN10 : value) - this.min));
 		},
 		calculateX : function(index){
 			var isRotated = (this.xLabelRotation > 0),
